@@ -377,7 +377,17 @@ APP_JWT_EXPIRATION=86400000
 APP_CORS_ALLOWED_ORIGINS=https://<your-frontend>.railway.app
 ```
 
-> **postgres:// → JDBC:** Railway provides `postgres://user:pass@host:5432/db`. Spring Boot needs `jdbc:postgresql://host:5432/db` — drop `postgres://` and prepend `jdbc:postgresql://`.
+> ⚠️ **Common deployment failure — postgres:// vs jdbc:postgresql://**
+> Railway's PostgreSQL plugin shows the connection string as:
+> ```
+> postgres://myuser:mypassword@postgres.railway.internal:5432/railway
+> ```
+> Spring Boot **cannot** use this format. You must convert it to JDBC format:
+> ```
+> jdbc:postgresql://postgres.railway.internal:5432/railway
+> ```
+> Rule: remove `postgres://`, add `jdbc:postgresql://`, keep everything after `@`.
+> Set username and password as **separate** variables (`SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`).
 
 Railway injects `PORT` automatically. `${{Postgres.PGUSER}}` syntax links the variable directly from the plugin — no copy-pasting required.
 
@@ -519,6 +529,60 @@ Both platforms capture all container stdout/stderr automatically — no configur
 - **Render** → Service → **Logs** tab
 
 For advanced log search, alerting, and long-term retention, configure log forwarding to Grafana Cloud Loki via Grafana Alloy or your platform's log drain feature.
+
+---
+
+## Troubleshooting
+
+### Railway / Render: Health check fails — "service unavailable"
+
+The build succeeded but the health check at `/actuator/health` keeps returning 503 or timing out.
+
+**Step 1 — Read the logs first**
+
+Railway → your backend service → **Logs** tab. Render → your backend service → **Logs** tab.
+
+Look for lines like:
+- `Unable to acquire JDBC Connection` → wrong or missing `SPRING_DATASOURCE_URL`
+- `Connection refused: redis` → wrong or missing Redis variables
+- `HikariPool … Failed to validate connection` → DB URL format wrong
+- `Caused by: java.lang.IllegalArgumentException: … URL must start with 'jdbc'` → you used `postgres://` format instead of `jdbc:postgresql://`
+
+**Step 2 — Verify the database URL format**
+
+This is the most common cause. Railway's PostgreSQL plugin gives you:
+```
+postgres://user:pass@host:5432/db
+```
+Spring Boot requires:
+```
+jdbc:postgresql://host:5432/db
+```
+Remove `postgres://`, add `jdbc:postgresql://`, move user/pass to separate variables.
+
+**Step 3 — Verify all required environment variables are set**
+
+Go to your Railway / Render backend service → **Variables** (Railway) or **Environment** (Render) and confirm every variable from the [Environment Variables](#environment-variables) section is present and non-empty. Missing `APP_JWT_SECRET` will also cause startup failure.
+
+**Step 4 — Re-deploy after fixing variables**
+
+Railway: Service → **Deploy** → **Redeploy**. Render: Service → **Manual Deploy**.
+
+---
+
+### Health check passes but frontend can't reach the API (CORS error)
+
+The browser console shows `Access to fetch ... has been blocked by CORS policy`.
+
+Fix: Update `APP_CORS_ALLOWED_ORIGINS` on the backend service to your exact frontend URL (including `https://`, no trailing slash), then redeploy the backend.
+
+---
+
+### Frontend loads but API calls return 502 / "bad gateway"
+
+The `BACKEND_URL` on the frontend service is wrong or points to a service that isn't running. Verify:
+- The backend service is healthy (green in Railway/Render dashboard)
+- `BACKEND_URL` matches the backend's exact public URL (no trailing slash)
 
 ---
 
