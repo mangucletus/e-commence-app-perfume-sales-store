@@ -1,0 +1,91 @@
+# Render Blueprint — deploys the full application on Render.
+# Push this file to GitHub, then in Render: New → Blueprint → select this repo.
+#
+# Services deployed:
+#   - perfume-store-backend  (Spring Boot, Docker)
+#   - perfume-store-frontend (React/Nginx, Docker)
+#   - perfume-store-db       (managed PostgreSQL)
+#   - perfume-store-redis    (managed Redis)
+#
+# Observability note:
+#   Prometheus / Grafana / Loki / Promtail require Docker socket access and
+#   volume-mounted config files — neither is available on Render.
+#   Use Grafana Cloud (free tier) for metrics and logs in production.
+#   See README.md → "Cloud Observability" for setup instructions.
+
+databases:
+  - name: perfume-store-db
+    databaseName: perfume_store
+    plan: free          # free tier: 90 days, then $7/month
+
+services:
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  - type: redis
+    name: perfume-store-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []     # internal access only
+
+  # ── Backend ────────────────────────────────────────────────────────────────
+  - type: web
+    name: perfume-store-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free          # upgrade to starter ($7/mo) to avoid cold starts
+    healthCheckPath: /actuator/health
+    envVars:
+      # PostgreSQL — wired automatically from the managed database above
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: perfume-store-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: perfume-store-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: perfume-store-db
+          property: password
+
+      # Redis — wired automatically from the managed Redis above
+      - key: SPRING_DATA_REDIS_HOST
+        fromService:
+          name: perfume-store-redis
+          type: redis
+          property: host
+      - key: SPRING_DATA_REDIS_PORT
+        fromService:
+          name: perfume-store-redis
+          type: redis
+          property: port
+
+      # JWT — Render generates a random secret on first deploy
+      - key: APP_JWT_SECRET
+        generateValue: true
+      - key: APP_JWT_EXPIRATION
+        value: "86400000"
+
+      # CORS — set to your frontend URL after first deploy
+      # Render cannot resolve this automatically due to circular dependency.
+      # After both services are live, update this to:
+      #   https://perfume-store-frontend.onrender.com
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  - type: web
+    name: perfume-store-frontend
+    env: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    healthCheckPath: /
+    envVars:
+      # Points the Nginx /api/ proxy at the live backend
+      - key: BACKEND_URL
+        fromService:
+          name: perfume-store-backend
+          type: web
+          property: url
