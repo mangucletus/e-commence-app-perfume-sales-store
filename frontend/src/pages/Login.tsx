@@ -20,57 +20,100 @@ export default function Login() {
       setAuth(data.token, data.email, data.firstName, data.lastName);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid credentials');
+      setError(err.response?.data?.error || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-12">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
-        <p className="text-gray-500 text-sm mb-6">Sign in to your account</p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center -mx-4 sm:-mx-6 lg:-mx-8 -my-10 px-4">
+      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl overflow-hidden grid md:grid-cols-2">
+        <div
+          className="hidden md:flex flex-col justify-between p-10 text-white"
+          style={{ background: 'linear-gradient(145deg, #2e1065 0%, #6b21a8 100%)' }}
+        >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
+            <span className="text-2xl font-black tracking-widest font-serif">PARFUM</span>
+            <p className="text-[10px] tracking-[0.35em] text-amber-400 uppercase font-bold mt-0.5">
+              Luxury Fragrances
+            </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
-            />
+            <blockquote className="text-lg font-light leading-relaxed text-violet-100 italic mb-4">
+              "A perfume is more than an extract; it is a presence in abstraction."
+            </blockquote>
+            <p className="text-violet-400 text-xs">— Giorgio Armani</p>
+          </div>
+          <p className="text-violet-400 text-xs">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-amber-400 font-semibold hover:text-amber-300 transition-colors">
+              Register here
+            </Link>
+          </p>
+        </div>
+
+        <div className="p-8 sm:p-10 flex flex-col justify-center">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-neutral-900 mb-1">Welcome back</h1>
+            <p className="text-neutral-500 text-sm">Sign in to your Parfum account</p>
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
+                Email address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-neutral-700 mb-1.5">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-purple-700 text-white rounded-xl font-semibold hover:bg-purple-800 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            {error && (
+              <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-600 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+                </svg>
+                {error}
+              </div>
+            )}
 
-        <p className="text-center text-sm text-gray-500 mt-4">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-purple-700 font-medium hover:underline">Register</Link>
-        </p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-violet-900 text-white rounded-xl font-semibold hover:bg-violet-800 disabled:opacity-50 transition-colors text-sm"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-neutral-500 mt-6 md:hidden">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-violet-900 font-semibold hover:underline">
+              Register
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
