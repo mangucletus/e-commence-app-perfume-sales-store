@@ -48,7 +48,7 @@ describe('Login page', () => {
 
   it('renders link to register page', () => {
     renderLogin();
-    expect(screen.getByRole('link', { name: 'Register' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create one' })).toBeInTheDocument();
   });
 
   it('successful login sets auth and navigates', async () => {

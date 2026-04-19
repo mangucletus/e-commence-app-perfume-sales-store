@@ -120,7 +120,7 @@ describe('Home page', () => {
     renderHome();
 
     await waitFor(() => {
-      expect(screen.getByText('No products match your filters.')).toBeInTheDocument();
+      expect(screen.getByText('No products found')).toBeInTheDocument();
     });
   });
 

@@ -11,9 +11,9 @@ interface Props {
 }
 
 const categoryStyle: Record<string, string> = {
-  MEN: 'bg-blue-50 text-blue-700',
-  WOMEN: 'bg-rose-50 text-rose-700',
-  UNISEX: 'bg-violet-50 text-violet-700',
+  MEN: 'bg-blue-100 text-blue-700',
+  WOMEN: 'bg-rose-100 text-rose-700',
+  UNISEX: 'bg-violet-100 text-violet-700',
 };
 
 export default function ProductCard({ product }: Props) {
@@ -45,8 +45,8 @@ export default function ProductCard({ product }: Props) {
   const inStock = product.stockQuantity > 0;
 
   return (
-    <div className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">
-      {/* Clickable image + info area */}
+    <div className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col border border-neutral-100 hover:border-neutral-200">
+      {/* Image + info — clickable area */}
       <Link to={`/products/${product.id}`} className="flex flex-col flex-1">
         <div className="relative aspect-[3/4] bg-neutral-100 overflow-hidden">
           <img
@@ -65,41 +65,41 @@ export default function ProductCard({ product }: Props) {
               </span>
             </div>
           )}
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-2.5 right-2.5">
             <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold tracking-wide uppercase ${categoryStyle[product.category] ?? 'bg-neutral-100 text-neutral-600'}`}>
               {product.category}
             </span>
           </div>
         </div>
 
-        <div className="px-4 pt-3 pb-2">
+        <div className="px-4 pt-3.5 pb-2">
           <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em] mb-0.5">
             {product.brand}
           </p>
-          <h3 className="font-semibold text-neutral-900 text-sm leading-snug line-clamp-2">
+          <h3 className="font-semibold text-neutral-900 text-sm leading-snug line-clamp-2 mb-2">
             {product.name}
           </h3>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-base font-bold text-violet-900">${product.price.toFixed(2)}</span>
-            <span className="text-[10px] text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded-full border border-neutral-100">
+          <div className="flex items-center justify-between">
+            <span className="text-base font-black text-violet-900">${product.price.toFixed(2)}</span>
+            <span className="text-[10px] text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-full">
               {product.size}
             </span>
           </div>
         </div>
       </Link>
 
-      {/* Add to Cart button — outside the Link */}
-      <div className="px-4 pb-4 pt-1">
+      {/* Add to Cart button — outside the Link to avoid nested interactivity */}
+      <div className="px-4 pb-4 pt-2">
         <button
           onClick={handleAddToCart}
           disabled={!inStock || adding}
-          className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${
+          className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
             !inStock
               ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
               : adding
                 ? 'bg-violet-200 text-violet-700 cursor-wait'
                 : token
-                  ? 'bg-violet-900 text-white hover:bg-violet-800 active:scale-[0.98]'
+                  ? 'bg-violet-900 text-white hover:bg-violet-800 active:scale-[0.98] shadow-sm shadow-violet-900/20'
                   : 'bg-violet-100 text-violet-800 hover:bg-violet-200'
           }`}
         >
