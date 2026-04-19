@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { register } from '../api/auth';
 import { useAuthStore } from '../store/useAuthStore';
+import { useCartStore } from '../store/useCartStore';
 
 export default function Register() {
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { setAuth } = useAuthStore();
+  const { fetchCount } = useCartStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from ?? '/';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -20,7 +24,8 @@ export default function Register() {
     try {
       const data = await register(form.email, form.password, form.firstName, form.lastName);
       setAuth(data.token, data.email, data.firstName, data.lastName);
-      navigate('/');
+      await fetchCount();
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -58,7 +63,7 @@ export default function Register() {
           </div>
           <p className="text-violet-400 text-xs">
             Already have an account?{' '}
-            <Link to="/login" className="text-amber-400 font-semibold hover:text-amber-300 transition-colors">
+            <Link to="/login" state={{ from }} className="text-amber-400 font-semibold hover:text-amber-300 transition-colors">
               Sign in
             </Link>
           </p>
@@ -147,7 +152,7 @@ export default function Register() {
 
           <p className="text-center text-sm text-neutral-500 mt-6 md:hidden">
             Already have an account?{' '}
-            <Link to="/login" className="text-violet-900 font-semibold hover:underline">
+            <Link to="/login" state={{ from }} className="text-violet-900 font-semibold hover:underline">
               Sign in
             </Link>
           </p>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { login } from '../api/auth';
 import { useAuthStore } from '../store/useAuthStore';
+import { useCartStore } from '../store/useCartStore';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -9,7 +10,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { setAuth } = useAuthStore();
+  const { fetchCount } = useCartStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from ?? '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,7 +22,8 @@ export default function Login() {
     try {
       const data = await login(email, password);
       setAuth(data.token, data.email, data.firstName, data.lastName);
-      navigate('/');
+      await fetchCount();
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Invalid email or password');
     } finally {
@@ -41,13 +46,13 @@ export default function Login() {
           </div>
           <div>
             <blockquote className="text-lg font-light leading-relaxed text-violet-100 italic mb-4">
-              "A perfume is more than an extract; it is a presence in abstraction."
+              &ldquo;A perfume is more than an extract; it is a presence in abstraction.&rdquo;
             </blockquote>
             <p className="text-violet-400 text-xs">— Giorgio Armani</p>
           </div>
           <p className="text-violet-400 text-xs">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-amber-400 font-semibold hover:text-amber-300 transition-colors">
+            <Link to="/register" state={{ from }} className="text-amber-400 font-semibold hover:text-amber-300 transition-colors">
               Register here
             </Link>
           </p>
@@ -109,7 +114,7 @@ export default function Login() {
 
           <p className="text-center text-sm text-neutral-500 mt-6 md:hidden">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-violet-900 font-semibold hover:underline">
+            <Link to="/register" state={{ from }} className="text-violet-900 font-semibold hover:underline">
               Register
             </Link>
           </p>

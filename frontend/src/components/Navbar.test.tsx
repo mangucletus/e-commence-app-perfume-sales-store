@@ -1,8 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Navbar from './Navbar';
 import { useAuthStore } from '../store/useAuthStore';
+
+vi.mock('../store/useCartStore', () => ({
+  useCartStore: vi.fn(() => ({ count: 0, fetchCount: vi.fn(), reset: vi.fn() })),
+}));
 
 function renderNavbar(initialPath = '/') {
   return render(
@@ -19,28 +23,26 @@ describe('Navbar', () => {
 
   it('shows brand logo', () => {
     renderNavbar();
-    expect(screen.getByText('Parfum')).toBeInTheDocument();
+    expect(screen.getByText('PARFUM')).toBeInTheDocument();
   });
 
-  it('shows Login and Register when unauthenticated', () => {
+  it('shows Sign in and Register when unauthenticated', () => {
     renderNavbar();
-    expect(screen.getByText('Login')).toBeInTheDocument();
+    expect(screen.getByText('Sign in')).toBeInTheDocument();
     expect(screen.getByText('Register')).toBeInTheDocument();
   });
 
-  it('does not show Cart, Orders or Logout when unauthenticated', () => {
+  it('does not show Orders or Sign out when unauthenticated', () => {
     renderNavbar();
-    expect(screen.queryByText('Cart')).not.toBeInTheDocument();
     expect(screen.queryByText('Orders')).not.toBeInTheDocument();
-    expect(screen.queryByText('Logout')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign out')).not.toBeInTheDocument();
   });
 
-  it('shows Cart, Orders and Logout when authenticated', () => {
+  it('shows Orders and Sign out when authenticated', () => {
     useAuthStore.setState({ token: 'tok', email: 'john@ex.com', firstName: 'John', lastName: 'Doe' });
     renderNavbar();
-    expect(screen.getByText('Cart')).toBeInTheDocument();
     expect(screen.getByText('Orders')).toBeInTheDocument();
-    expect(screen.getByText('Logout')).toBeInTheDocument();
+    expect(screen.getByText('Sign out')).toBeInTheDocument();
   });
 
   it('greets authenticated user by first name', () => {
@@ -49,19 +51,17 @@ describe('Navbar', () => {
     expect(screen.getByText('Hi, John')).toBeInTheDocument();
   });
 
-  it('hides Login and Register when authenticated', () => {
+  it('hides Sign in and Register when authenticated', () => {
     useAuthStore.setState({ token: 'tok', email: 'john@ex.com', firstName: 'John', lastName: 'Doe' });
     renderNavbar();
-    expect(screen.queryByText('Login')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign in')).not.toBeInTheDocument();
     expect(screen.queryByText('Register')).not.toBeInTheDocument();
   });
 
-  it('logout clears auth state and navigates home', () => {
+  it('sign out clears auth state', () => {
     useAuthStore.setState({ token: 'tok', email: 'john@ex.com', firstName: 'John', lastName: 'Doe' });
     renderNavbar();
-
-    fireEvent.click(screen.getByText('Logout'));
-
+    fireEvent.click(screen.getByText('Sign out'));
     expect(useAuthStore.getState().token).toBeNull();
   });
 });

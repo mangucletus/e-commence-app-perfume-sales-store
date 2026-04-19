@@ -8,12 +8,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,9 +31,12 @@ class ProductServiceTest {
 
     private Product menProduct;
     private Product womenProduct;
+    private Pageable defaultPageable;
 
     @BeforeEach
     void setUp() {
+        defaultPageable = PageRequest.of(0, 12);
+
         menProduct = new Product();
         menProduct.setId(1L);
         menProduct.setName("Bleu de Chanel");
@@ -46,45 +55,46 @@ class ProductServiceTest {
     }
 
     @Test
-    void findAll_nullCategory_returnsAllProducts() {
-        when(productRepository.findAll()).thenReturn(List.of(menProduct, womenProduct));
+    void findAll_noFilters_returnsAllProducts() {
+        Page<Product> page = new PageImpl<>(List.of(menProduct, womenProduct));
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        List<Product> result = productService.findAll(null);
+        Page<Product> result = productService.findAll(null, null, null, null, null, defaultPageable);
 
-        assertThat(result).hasSize(2);
-        verify(productRepository).findAll();
-        verify(productRepository, never()).findByCategory(any());
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test
-    void findAll_blankCategory_returnsAllProducts() {
-        when(productRepository.findAll()).thenReturn(List.of(menProduct, womenProduct));
+    void findAll_withCategory_delegatesToRepository() {
+        Page<Product> page = new PageImpl<>(List.of(menProduct));
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        List<Product> result = productService.findAll("  ");
+        Page<Product> result = productService.findAll("MEN", null, null, null, null, defaultPageable);
 
-        assertThat(result).hasSize(2);
-        verify(productRepository).findAll();
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test
-    void findAll_uppercaseCategory_filtersByCategory() {
-        when(productRepository.findByCategory(Product.Category.MEN)).thenReturn(List.of(menProduct));
+    void findAll_withSearch_delegatesToRepository() {
+        Page<Product> page = new PageImpl<>(List.of(menProduct));
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        List<Product> result = productService.findAll("MEN");
+        Page<Product> result = productService.findAll(null, null, "chanel", null, null, defaultPageable);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getCategory()).isEqualTo(Product.Category.MEN);
-        verify(productRepository).findByCategory(Product.Category.MEN);
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     @Test
-    void findAll_lowercaseCategory_handledCaseInsensitively() {
-        when(productRepository.findByCategory(Product.Category.WOMEN)).thenReturn(List.of(womenProduct));
+    void findAll_withPriceRange_delegatesToRepository() {
+        Page<Product> page = new PageImpl<>(List.of(menProduct));
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
 
-        List<Product> result = productService.findAll("women");
+        Page<Product> result = productService.findAll(null, null, null,
+                new BigDecimal("100"), new BigDecimal("150"), defaultPageable);
 
-        assertThat(result).hasSize(1);
-        verify(productRepository).findByCategory(Product.Category.WOMEN);
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     @Test
@@ -104,5 +114,14 @@ class ProductServiceTest {
         assertThatThrownBy(() -> productService.findById(99L))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Product not found");
+    }
+
+    @Test
+    void findAllBrands_returnsBrandsFromRepository() {
+        when(productRepository.findDistinctBrands()).thenReturn(List.of("Chanel", "Dior"));
+
+        List<String> brands = productService.findAllBrands();
+
+        assertThat(brands).containsExactly("Chanel", "Dior");
     }
 }

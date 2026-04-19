@@ -10,6 +10,16 @@ export interface Product {
   size: string;
 }
 
+export interface PagedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;   // current page (0-indexed)
+  size: number;
+  first: boolean;
+  last: boolean;
+}
+
 export interface CartItem {
   productId: number;
   productName: string;

@@ -10,18 +10,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProductController.class)
 @Import(SecurityConfig.class)
+@SuppressWarnings("deprecation")
 class ProductControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -55,23 +60,40 @@ class ProductControllerTest {
     }
 
     @Test
-    void getProducts_noFilter_returnsAllProducts() throws Exception {
-        when(productService.findAll(null)).thenReturn(List.of(menProduct, womenProduct));
+    void getProducts_noFilter_returnsPagedResult() throws Exception {
+        Page<Product> page = new PageImpl<>(List.of(menProduct, womenProduct));
+        when(productService.findAll(isNull(), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(page);
 
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].name").value("Bleu de Chanel"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].name").value("Bleu de Chanel"))
+                .andExpect(jsonPath("$.totalElements").value(2));
     }
 
     @Test
-    void getProducts_withCategoryFilter_returnsFilteredList() throws Exception {
-        when(productService.findAll("MEN")).thenReturn(List.of(menProduct));
+    void getProducts_withCategoryFilter_returnsFilteredPage() throws Exception {
+        Page<Product> page = new PageImpl<>(List.of(menProduct));
+        when(productService.findAll(eq("MEN"), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(page);
 
         mockMvc.perform(get("/api/products").param("category", "MEN"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].category").value("MEN"));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].category").value("MEN"));
+    }
+
+    @Test
+    void getProducts_emptyResult_returnsEmptyContent() throws Exception {
+        Page<Product> empty = new PageImpl<>(List.of());
+        when(productService.findAll(eq("UNISEX"), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(empty);
+
+        mockMvc.perform(get("/api/products").param("category", "UNISEX"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
@@ -96,11 +118,12 @@ class ProductControllerTest {
     }
 
     @Test
-    void getProducts_emptyResult_returnsEmptyArray() throws Exception {
-        when(productService.findAll("UNISEX")).thenReturn(List.of());
+    void getBrands_returnsBrandList() throws Exception {
+        when(productService.findAllBrands()).thenReturn(List.of("Chanel", "Dior"));
 
-        mockMvc.perform(get("/api/products").param("category", "UNISEX"))
+        mockMvc.perform(get("/api/products/brands"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0]").value("Chanel"));
     }
 }

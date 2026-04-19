@@ -1,49 +1,115 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getProducts } from '../api/products';
-import type { Product } from '../types';
+import { getProducts, getBrands } from '../api/products';
+import type { Product, PagedResponse } from '../types';
 import ProductCard from '../components/ProductCard';
 
-const categories = ['ALL', 'MEN', 'WOMEN', 'UNISEX'];
+const CATEGORIES = ['ALL', 'MEN', 'WOMEN', 'UNISEX'];
+const SORT_OPTIONS = [
+  { value: 'id:asc', label: 'Newest' },
+  { value: 'price:asc', label: 'Price: Low → High' },
+  { value: 'price:desc', label: 'Price: High → Low' },
+  { value: 'name:asc', label: 'Name A–Z' },
+  { value: 'brand:asc', label: 'Brand A–Z' },
+];
+const PAGE_SIZE = 12;
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [category, setCategory] = useState('ALL');
+  const [paged, setPaged] = useState<PagedResponse<Product> | null>(null);
+  const [brands, setBrands] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [retryCount, setRetryCount] = useState(0);
 
+  const [category, setCategory] = useState('ALL');
+  const [brand, setBrand] = useState('');
+  const [sort, setSort] = useState('id:asc');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [page, setPage] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce search input
   useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [category, brand, sort, minPrice, maxPrice]);
+
+  // Fetch brands once
+  useEffect(() => {
+    getBrands().then(setBrands).catch(() => {});
+  }, []);
+
+  const fetchProducts = useCallback(() => {
     setLoading(true);
     setError('');
-    getProducts(category === 'ALL' ? undefined : category)
-      .then(setProducts)
+    const [sortBy, sortDir] = sort.split(':') as [string, 'asc' | 'desc'];
+    getProducts({
+      category: category !== 'ALL' ? category : undefined,
+      brand: brand || undefined,
+      search: debouncedSearch || undefined,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      page,
+      size: PAGE_SIZE,
+      sortBy,
+      sortDir,
+    })
+      .then(setPaged)
       .catch(() => setError('Failed to load products'))
       .finally(() => setLoading(false));
-  }, [category, retryCount]);
+  }, [category, brand, sort, debouncedSearch, minPrice, maxPrice, page]);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  const clearFilters = () => {
+    setCategory('ALL');
+    setBrand('');
+    setSort('id:asc');
+    setSearch('');
+    setMinPrice('');
+    setMaxPrice('');
+    setPage(0);
+  };
+
+  const hasActiveFilters = category !== 'ALL' || brand || debouncedSearch || minPrice || maxPrice || sort !== 'id:asc';
 
   return (
     <div>
-      <div className="relative rounded-3xl overflow-hidden mb-12" style={{ background: 'linear-gradient(135deg, #2e1065 0%, #6b21a8 60%, #7c3aed 100%)' }}>
+      {/* Hero */}
+      <div
+        className="relative rounded-3xl overflow-hidden mb-10"
+        style={{ background: 'linear-gradient(135deg, #2e1065 0%, #6b21a8 60%, #7c3aed 100%)' }}
+      >
         <div
           className="absolute inset-0 opacity-10 bg-cover bg-center"
           style={{ backgroundImage: "url('https://images.unsplash.com/photo-1541643600914-78b084683702?w=1200&q=30')" }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-violet-950/80 to-transparent" />
-        <div className="relative px-8 sm:px-12 py-14 sm:py-20 lg:py-24 max-w-lg">
-          <p className="text-amber-400 text-xs tracking-[0.35em] uppercase font-bold mb-4">New Collection</p>
+        <div className="relative px-8 sm:px-12 py-14 sm:py-20 lg:py-24 max-w-xl">
+          <p className="text-amber-400 text-xs tracking-[0.35em] uppercase font-bold mb-4">New Collection 2025</p>
           <h1 className="text-4xl sm:text-5xl font-black text-white leading-[1.1] mb-5">
             Discover Your<br />Signature Scent
           </h1>
           <p className="text-violet-200 text-sm sm:text-base leading-relaxed mb-8">
-            Premium fragrances crafted for those who appreciate the art of luxury perfumery.
+            Over 40 premium fragrances crafted for those who appreciate the art of luxury perfumery.
           </p>
           <Link
             to="/"
-            onClick={() => setCategory('ALL')}
+            onClick={() => { setCategory('ALL'); setPage(0); }}
             className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-semibold px-7 py-3 rounded-full transition-colors text-sm shadow-lg shadow-amber-500/30"
           >
-            Shop Collection
+            Shop All Fragrances
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
@@ -51,32 +117,147 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-8 flex-wrap">
-        <span className="text-sm text-neutral-400 font-medium mr-1">Filter by:</span>
-        {categories.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCategory(c)}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-150 ${
-              category === c
-                ? 'bg-violet-900 text-white shadow-sm shadow-violet-200'
-                : 'bg-white text-neutral-600 border border-neutral-200 hover:border-violet-300 hover:text-violet-900'
-            }`}
+      {/* Search + Filter Bar */}
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, brand, or notes…"
+              className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition bg-white"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Sort */}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="border border-neutral-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition text-neutral-700 min-w-[170px]"
           >
-            {c === 'ALL' ? 'All' : c.charAt(0) + c.slice(1).toLowerCase()}
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+
+          {/* Filter toggle (mobile) */}
+          <button
+            onClick={() => setFiltersOpen((v) => !v)}
+            className={`sm:hidden flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-medium transition ${filtersOpen ? 'bg-violet-900 text-white border-violet-900' : 'bg-white text-neutral-700 border-neutral-200'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+            </svg>
+            Filters
+            {hasActiveFilters && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
           </button>
-        ))}
+        </div>
+
+        {/* Category pills */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-neutral-400 font-medium">Category:</span>
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              onClick={() => { setCategory(c); setPage(0); }}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                category === c
+                  ? 'bg-violet-900 text-white shadow-sm'
+                  : 'bg-white text-neutral-600 border border-neutral-200 hover:border-violet-300 hover:text-violet-900'
+              }`}
+            >
+              {c === 'ALL' ? 'All' : c.charAt(0) + c.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* Extended filters */}
+        <div className={`${filtersOpen ? 'flex' : 'hidden sm:flex'} flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap`}>
+          {/* Brand filter */}
+          {brands.length > 0 && (
+            <select
+              value={brand}
+              onChange={(e) => { setBrand(e.target.value); setPage(0); }}
+              className="border border-neutral-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 transition text-neutral-700"
+            >
+              <option value="">All Brands</option>
+              {brands.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Price range */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">Price:</span>
+            <input
+              type="number"
+              value={minPrice}
+              onChange={(e) => { setMinPrice(e.target.value); setPage(0); }}
+              placeholder="Min $"
+              min={0}
+              className="w-20 border border-neutral-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 transition"
+            />
+            <span className="text-neutral-400 text-xs">–</span>
+            <input
+              type="number"
+              value={maxPrice}
+              onChange={(e) => { setMaxPrice(e.target.value); setPage(0); }}
+              placeholder="Max $"
+              min={0}
+              className="w-20 border border-neutral-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 transition"
+            />
+          </div>
+
+          {/* Clear filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+              </svg>
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        {/* Results summary */}
+        {!loading && paged && (
+          <p className="text-xs text-neutral-400">
+            {paged.totalElements === 0
+              ? 'No products found'
+              : `Showing ${paged.number * PAGE_SIZE + 1}–${Math.min((paged.number + 1) * PAGE_SIZE, paged.totalElements)} of ${paged.totalElements} products`}
+          </p>
+        )}
       </div>
 
+      {/* Product Grid */}
       {loading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
             <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
               <div className="aspect-[3/4] bg-neutral-200" />
               <div className="p-4 space-y-2">
                 <div className="h-2.5 bg-neutral-200 rounded-full w-1/2" />
                 <div className="h-4 bg-neutral-200 rounded-full w-3/4" />
-                <div className="h-2.5 bg-neutral-200 rounded-full w-1/3" />
+                <div className="h-8 bg-neutral-200 rounded-xl mt-3" />
               </div>
             </div>
           ))}
@@ -91,27 +272,76 @@ export default function Home() {
             </svg>
           </div>
           <p className="text-neutral-500 mb-4 text-sm">{error}</p>
-          <button
-            onClick={() => setRetryCount((c) => c + 1)}
-            className="text-sm text-violet-900 font-semibold hover:underline"
-          >
+          <button onClick={fetchProducts} className="text-sm text-violet-900 font-semibold hover:underline">
             Try again
           </button>
         </div>
       )}
 
-      {!loading && !error && products.length === 0 && (
+      {!loading && !error && paged?.totalElements === 0 && (
         <div className="text-center py-20">
-          <p className="text-neutral-400 text-sm">No products found in this category.</p>
+          <p className="text-neutral-500 text-sm mb-3">No products match your filters.</p>
+          <button onClick={clearFilters} className="text-sm text-violet-900 font-semibold hover:underline">
+            Clear all filters
+          </button>
         </div>
       )}
 
-      {!loading && !error && products.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-          {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+      {!loading && !error && paged && paged.totalElements > 0 && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+            {paged.content.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {paged.totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-10">
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={paged.first}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-neutral-200 rounded-xl bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+                Prev
+              </button>
+
+              {Array.from({ length: paged.totalPages }).map((_, i) => {
+                const show = i === 0 || i === paged.totalPages - 1 || Math.abs(i - paged.number) <= 1;
+                const isGap = !show && (i === 1 || i === paged.totalPages - 2);
+                if (isGap) return <span key={i} className="text-neutral-400 text-sm">…</span>;
+                if (!show) return null;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setPage(i)}
+                    className={`w-9 h-9 text-sm font-semibold rounded-xl transition ${
+                      paged.number === i
+                        ? 'bg-violet-900 text-white'
+                        : 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={paged.last}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-neutral-200 rounded-xl bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Next
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

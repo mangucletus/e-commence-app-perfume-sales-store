@@ -8,6 +8,10 @@ vi.mock('../api/auth', () => ({
   login: vi.fn(),
 }));
 
+vi.mock('../store/useCartStore', () => ({
+  useCartStore: vi.fn(() => ({ fetchCount: vi.fn().mockResolvedValue(undefined) })),
+}));
+
 import { login } from '../api/auth';
 const mockLogin = vi.mocked(login);
 
@@ -47,7 +51,7 @@ describe('Login page', () => {
     expect(screen.getByRole('link', { name: 'Register' })).toBeInTheDocument();
   });
 
-  it('successful login sets auth and navigates home', async () => {
+  it('successful login sets auth and navigates', async () => {
     mockLogin.mockResolvedValue({
       token: 'tok123',
       email: 'john@example.com',
@@ -67,7 +71,7 @@ describe('Login page', () => {
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith('john@example.com', 'password123');
       expect(useAuthStore.getState().token).toBe('tok123');
-      expect(mockNavigate).toHaveBeenCalledWith('/');
+      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
     });
   });
 

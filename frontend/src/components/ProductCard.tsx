@@ -1,61 +1,117 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { addToCart } from '../api/cart';
+import { useAuthStore } from '../store/useAuthStore';
+import { useCartStore } from '../store/useCartStore';
+import { useToastStore } from '../store/useToastStore';
 import type { Product } from '../types';
 
 interface Props {
   product: Product;
 }
 
+const categoryStyle: Record<string, string> = {
+  MEN: 'bg-blue-50 text-blue-700',
+  WOMEN: 'bg-rose-50 text-rose-700',
+  UNISEX: 'bg-violet-50 text-violet-700',
+};
+
 export default function ProductCard({ product }: Props) {
-  const categoryStyle =
-    product.category === 'MEN'
-      ? 'bg-blue-50 text-blue-700'
-      : product.category === 'WOMEN'
-        ? 'bg-rose-50 text-rose-700'
-        : 'bg-violet-50 text-violet-700';
+  const { token } = useAuthStore();
+  const { setCount, count } = useCartStore();
+  const { show } = useToastStore();
+  const navigate = useNavigate();
+  const [adding, setAdding] = useState(false);
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!token) {
+      navigate('/login', { state: { from: `/products/${product.id}` } });
+      return;
+    }
+    if (product.stockQuantity === 0 || adding) return;
+    setAdding(true);
+    try {
+      await addToCart(product.id, 1);
+      setCount(count + 1);
+      show(`${product.name} added to cart`);
+    } catch {
+      show('Failed to add to cart', 'error');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const inStock = product.stockQuantity > 0;
 
   return (
-    <Link
-      to={`/products/${product.id}`}
-      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col"
-    >
-      <div className="relative aspect-[3/4] bg-neutral-100 overflow-hidden">
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1541643600914-78b084683702?w=400';
-          }}
-        />
-        {product.stockQuantity === 0 && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="text-white text-[10px] font-bold tracking-widest uppercase bg-black/60 px-3 py-1.5 rounded-full">
-              Sold Out
+    <div className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">
+      {/* Clickable image + info area */}
+      <Link to={`/products/${product.id}`} className="flex flex-col flex-1">
+        <div className="relative aspect-[3/4] bg-neutral-100 overflow-hidden">
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                'https://images.unsplash.com/photo-1541643600914-78b084683702?w=400';
+            }}
+          />
+          {!inStock && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <span className="text-white text-[10px] font-bold tracking-widest uppercase bg-black/60 px-3 py-1.5 rounded-full">
+                Sold Out
+              </span>
+            </div>
+          )}
+          <div className="absolute top-3 right-3">
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold tracking-wide uppercase ${categoryStyle[product.category] ?? 'bg-neutral-100 text-neutral-600'}`}>
+              {product.category}
             </span>
           </div>
-        )}
-        <div className="absolute top-3 right-3">
-          <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold tracking-wide uppercase ${categoryStyle}`}>
-            {product.category}
-          </span>
         </div>
-      </div>
 
-      <div className="p-4 flex flex-col flex-1">
-        <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em] mb-0.5">
-          {product.brand}
-        </p>
-        <h3 className="font-semibold text-neutral-900 text-sm leading-snug line-clamp-2 mb-2">
-          {product.name}
-        </h3>
-        <div className="flex items-center justify-between mt-auto pt-2 border-t border-neutral-50">
-          <span className="text-base font-bold text-violet-900">${product.price.toFixed(2)}</span>
-          <span className="text-[10px] text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded-full border border-neutral-100">
-            {product.size}
-          </span>
+        <div className="px-4 pt-3 pb-2">
+          <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em] mb-0.5">
+            {product.brand}
+          </p>
+          <h3 className="font-semibold text-neutral-900 text-sm leading-snug line-clamp-2">
+            {product.name}
+          </h3>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-base font-bold text-violet-900">${product.price.toFixed(2)}</span>
+            <span className="text-[10px] text-neutral-400 bg-neutral-50 px-2 py-0.5 rounded-full border border-neutral-100">
+              {product.size}
+            </span>
+          </div>
         </div>
+      </Link>
+
+      {/* Add to Cart button — outside the Link */}
+      <div className="px-4 pb-4 pt-1">
+        <button
+          onClick={handleAddToCart}
+          disabled={!inStock || adding}
+          className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${
+            !inStock
+              ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+              : adding
+                ? 'bg-violet-200 text-violet-700 cursor-wait'
+                : token
+                  ? 'bg-violet-900 text-white hover:bg-violet-800 active:scale-[0.98]'
+                  : 'bg-violet-100 text-violet-800 hover:bg-violet-200'
+          }`}
+        >
+          {!inStock
+            ? 'Out of Stock'
+            : adding
+              ? 'Adding…'
+              : token
+                ? 'Add to Cart'
+                : 'Sign in to Buy'}
+        </button>
       </div>
-    </Link>
+    </div>
   );
 }

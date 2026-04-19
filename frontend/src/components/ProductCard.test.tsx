@@ -1,8 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ProductCard from './ProductCard';
 import type { Product } from '../types';
+
+vi.mock('../api/cart', () => ({ addToCart: vi.fn() }));
+vi.mock('../store/useAuthStore', () => ({
+  useAuthStore: vi.fn(() => ({ token: null })),
+}));
+vi.mock('../store/useCartStore', () => ({
+  useCartStore: vi.fn(() => ({ count: 0, setCount: vi.fn() })),
+}));
+vi.mock('../store/useToastStore', () => ({
+  useToastStore: vi.fn(() => ({ show: vi.fn() })),
+}));
 
 const menProduct: Product = {
   id: 1,
@@ -25,6 +36,10 @@ function renderCard(product: Product) {
 }
 
 describe('ProductCard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders product name', () => {
     renderCard(menProduct);
     expect(screen.getByText('Bleu de Chanel')).toBeInTheDocument();
@@ -50,25 +65,30 @@ describe('ProductCard', () => {
     expect(screen.getByText('MEN')).toBeInTheDocument();
   });
 
-  it('renders description', () => {
-    renderCard(menProduct);
-    expect(screen.getByText('A fresh, clean masculine fragrance.')).toBeInTheDocument();
-  });
-
   it('links to product detail page', () => {
     renderCard(menProduct);
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('href', '/products/1');
   });
 
-  it('shows out-of-stock message when stockQuantity is 0', () => {
+  it('shows Sold Out overlay when stockQuantity is 0', () => {
     renderCard({ ...menProduct, stockQuantity: 0 });
-    expect(screen.getByText('Out of stock')).toBeInTheDocument();
+    expect(screen.getByText('Sold Out')).toBeInTheDocument();
   });
 
-  it('does not show out-of-stock message when in stock', () => {
+  it('shows Out of Stock button text when stockQuantity is 0', () => {
+    renderCard({ ...menProduct, stockQuantity: 0 });
+    expect(screen.getByRole('button', { name: 'Out of Stock' })).toBeInTheDocument();
+  });
+
+  it('does not show Sold Out when in stock', () => {
     renderCard(menProduct);
-    expect(screen.queryByText('Out of stock')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sold Out')).not.toBeInTheDocument();
+  });
+
+  it('shows Sign in to Buy when user is not authenticated', () => {
+    renderCard(menProduct);
+    expect(screen.getByRole('button', { name: 'Sign in to Buy' })).toBeInTheDocument();
   });
 
   it('renders product image with correct alt text', () => {
